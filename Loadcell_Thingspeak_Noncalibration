@@ -1,0 +1,106 @@
+ #include <ThingSpeak.h>
+#include "HX711.h"
+#include <WiFiNINA.h>
+ // always include thingspeak header file after other header files and custom macros
+char ssid[] = "Traphouse";   // your network SSID (name) 
+char pass[] = "Annabanana69";   // your network password
+
+#define LOADCELL_DOUT_PIN_RIGHT  3
+#define LOADCELL_SCK_PIN_RIGHT  2
+#define LOADCELL_DOUT_PIN_LEFT 5
+#define LOADCELL_SCK_PIN_LEFT  4
+
+HX711 scaleleft;
+HX711 scaleright;
+WiFiClient  client;
+
+unsigned long myChannelNumber = 1640109;
+const char * myWriteAPIKey = "G9HF11WOWX5HIZBX";
+float calibration_factor = -7050; //-7050 worked for my 440lb max scale setup
+
+void setup() {
+   Serial.begin(115200);  // Initialize serial
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for Leonardo native USB port only
+  }
+  
+  // check for the WiFi module:
+  if (WiFi.status() == WL_NO_MODULE) {
+    Serial.println("Communication with WiFi module failed!");
+    // don't continue
+    while (true);
+  }
+
+  String fv = WiFi.firmwareVersion();
+  if (fv != "1.0.0") {
+    Serial.println("Please upgrade the firmware");
+  }
+    
+  ThingSpeak.begin(client);  //Initialize ThingSpeak
+
+
+  Serial.begin(9600);
+
+
+  scaleleft.begin(LOADCELL_DOUT_PIN_LEFT, LOADCELL_SCK_PIN_LEFT);
+  scaleleft.set_scale(calibration_factor); //This value is obtained by using the SparkFun_HX711_Calibration sketch
+  scaleleft.tare(); //Assuming there is no weight on the scale at start up, reset the scale to 0
+
+  Serial.println("Left Foot Readings:");
+
+  scaleright.begin(LOADCELL_DOUT_PIN_RIGHT, LOADCELL_SCK_PIN_RIGHT);
+  scaleright.set_scale();
+  scaleright.tare(); //Reset the scale to 0
+
+  Serial.println("Right Foot Readings:");
+}
+
+void loop() {
+  // Connect or reconnect to WiFi
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.print("Attempting to connect to SSID: ");
+    while(WiFi.status() != WL_CONNECTED){
+      WiFi.begin(ssid, pass); // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+      Serial.print(".");
+      delay(5000);     
+    } 
+    Serial.println("\nConnected.");
+  }
+  Serial.print("Left Foot Reading: ");
+  Serial.print(scaleleft.get_units(), 1); //scale.get_units() returns a float
+  long scaleleftTS= scaleleft.get_units();
+  Serial.print(" lbs"); //You can change this to kg but you'll need to refactor the calibration_factor
+  Serial.println();
+  
+  Serial.print("Right Foot Reading: ");
+  Serial.print(scaleright.get_units(), 1);
+  long scalerightTS= scaleright.get_units();
+  Serial.print(" lbs"); 
+  Serial.println();
+
+  ThingSpeak.setField(1, scaleleftTS);
+  ThingSpeak.setField(2, scalerightTS);
+  
+  
+ 
+  
+  // write to the ThingSpeak channel
+  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  if(x == 200){
+    Serial.println("Channel update successful.");
+  }
+  else{
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
+  }
+  
+
+  if(Serial.available())
+  {
+    char temp = Serial.read();
+    if(temp == '+' || temp == 'a')
+      calibration_factor += 10;
+    else if(temp == '-' || temp == 'z')
+      calibration_factor -= 10;
+  }
+  delay(1000);
+}
