@@ -1,0 +1,146 @@
+ #include <ThingSpeak.h>
+#include "HX711.h"
+#include <WiFiNINA.h>
+ // always include thingspeak header file after other header files and custom macros
+char ssid[] = "Traphouse";   // your network SSID (name) 
+char pass[] = "Annabanana69";   // your network password
+
+#define LOADCELL_DOUT_PIN_RIGHT  3
+#define LOADCELL_SCK_PIN_RIGHT  2
+#define LOADCELL_DOUT_PIN_LEFT 5
+#define LOADCELL_SCK_PIN_LEFT  4
+
+HX711 scaleleft;
+HX711 scaleright;
+WiFiClient  client;
+
+unsigned long myChannelNumberPressure = 1640109;
+unsigned long myChannelNumberEMG = 1636837;
+const char * myWriteAPIKeyPressure = "G9HF11WOWX5HIZBX";
+const char * myWriteAPIKeyEMG = "4CRL0M1HGZ5HRPPH";
+
+float calibration_factor = -7050; //-7050 worked for my 440lb max scale setup
+
+void setup() {
+   Serial.begin(115200);  // Initialize serial
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for Leonardo native USB port only
+  }
+  
+  // check for the WiFi module:
+  if (WiFi.status() == WL_NO_MODULE) {
+    Serial.println("Communication with WiFi module failed!");
+    // don't continue
+    while (true);
+  }
+
+  String fv = WiFi.firmwareVersion();
+  if (fv != "1.0.0") {
+    Serial.println("Please upgrade the firmware");
+  }
+    
+  ThingSpeak.begin(client);  //Initialize ThingSpeak
+
+
+  Serial.begin(9600);
+
+
+  scaleleft.begin(LOADCELL_DOUT_PIN_LEFT, LOADCELL_SCK_PIN_LEFT);
+  scaleleft.set_scale(calibration_factor); //This value is obtained by using the SparkFun_HX711_Calibration sketch
+  scaleleft.tare(); //Assuming there is no weight on the scale at start up, reset the scale to 0
+
+  Serial.println("Left Foot Readings:");
+
+  scaleright.begin(LOADCELL_DOUT_PIN_RIGHT, LOADCELL_SCK_PIN_RIGHT);
+  scaleright.set_scale(calibration_factor);
+  scaleright.tare(); //Reset the scale to 0
+
+  Serial.println("Right Foot Readings:");
+}
+
+void loop() {
+  // Connect or reconnect to WiFi
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.print("Attempting to connect to SSID: ");
+    while(WiFi.status() != WL_CONNECTED){
+      WiFi.begin(ssid, pass); // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+      Serial.print(".");
+      delay(5000);     
+    } 
+    Serial.println("\nConnected.");
+  }
+  Serial.print("Left Foot Reading: ");
+  Serial.print(scaleleft.get_units(), 1); //scale.get_units() returns a float
+  long scaleleftTS= scaleleft.get_units();
+  Serial.print(" lbs"); //You can change this to kg but you'll need to refactor the calibration_factor
+  Serial.println();
+  
+  Serial.print("Right Foot Reading: ");
+  Serial.print(scaleright.get_units(), 1);
+  long scalerightTS= scaleright.get_units();
+  Serial.print(" lbs"); 
+  Serial.println();
+
+  ThingSpeak.setField(1, scaleleftTS);
+  ThingSpeak.setField(2, scalerightTS);
+  
+  
+ 
+  
+  // write to the ThingSpeak channel
+  int x = ThingSpeak.writeFields(myChannelNumberPressure, myWriteAPIKeyPressure);
+  if(x == 200){
+    Serial.println("Channel update successful.");
+  }
+  else{
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
+  }
+  delay(1000);
+  //Getting EMG data 
+  float sensorValue1 = analogRead(A0);
+  float EMGmillivolt1 = (sensorValue1/1023)*5;
+  float sensorValue2 = analogRead(A1);
+  float EMGmillivolt2 = (sensorValue2/1023)*5;
+  float sensorValue3 = analogRead(A2);
+  float EMGmillivolt3 = (sensorValue3/1023)*5;
+  float sensorValue4 = analogRead(A3);
+  float EMGmillivolt4 = (sensorValue4/1023)*5;
+  float sensorValue5 = analogRead(A4);
+  float EMGmillivolt5 = (sensorValue5/1023)*5;
+  float sensorValue6 = analogRead(A5);
+  float EMGmillivolt6 = (sensorValue6/1023)*5;
+  Serial.print("Emg1 :");
+  Serial.println(sensorValue1);
+  Serial.println(EMGmillivolt1*1000);
+  Serial.print("Emg2 :");
+  Serial.println(sensorValue2);
+  Serial.println(EMGmillivolt2*1000);
+  Serial.print("Emg3 :");
+  Serial.println(sensorValue3);
+  Serial.println(EMGmillivolt3*1000);
+  Serial.print("Emg4 :");
+  Serial.println(sensorValue4);
+  Serial.println(EMGmillivolt4*1000);
+  Serial.print("Emg5 :");
+  Serial.println(sensorValue5);
+  Serial.println(EMGmillivolt5*1000);
+  Serial.print("Emg6 :");
+  Serial.println(sensorValue6);
+  Serial.println(EMGmillivolt6*1000);
+
+  ThingSpeak.setField(1, EMGmillivolt1);
+  ThingSpeak.setField(2, EMGmillivolt2);
+  ThingSpeak.setField(3, EMGmillivolt3);
+  ThingSpeak.setField(4, EMGmillivolt4);
+  ThingSpeak.setField(5, EMGmillivolt5);
+  ThingSpeak.setField(6, EMGmillivolt6);
+  int y = ThingSpeak.writeFields(myChannelNumberEMG, myWriteAPIKeyEMG);
+  if(y == 200){
+    Serial.println("Channel update successful.");
+  }
+  else{
+    Serial.println("Problem updating channel. HTTP error code " + String(y));
+  }
+  
+ 
+}
