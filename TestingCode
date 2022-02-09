@@ -2,8 +2,8 @@
 #include "HX711.h"
 #include <WiFiNINA.h>
  // always include thingspeak header file after other header files and custom macros
-char ssid[] = "Traphouse";   // your network SSID (name) 
-char pass[] = "Annabanana69";   // your network password
+char ssid[] = "";   // your network SSID (name) 
+char pass[] = "";   // your network password
 
 #define LOADCELL_DOUT_PIN_RIGHT  3
 #define LOADCELL_SCK_PIN_RIGHT  2
