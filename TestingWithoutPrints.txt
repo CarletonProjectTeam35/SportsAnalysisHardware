@@ -76,10 +76,7 @@ void loop() {
 
   ThingSpeak.setField(1, scaleleftTS);
   ThingSpeak.setField(2, scalerightTS);
-  
-  
- 
-  
+
   // write to the ThingSpeak channel
   int x = ThingSpeak.writeFields(myChannelNumberPressure, myWriteAPIKeyPressure);
   if(x == 200){
